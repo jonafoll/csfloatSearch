@@ -33,14 +33,13 @@ if " " in user_input:
 # Convert the user input into a list of integers
 paint_seeds = [int(seed.strip()) for seed in user_input.split(",")]
 
-# Prompt user for additional parameters
-additional_params = input("Any additional parameters? (e.g., max_price: 100, min_price: 50, max_float: 0.07, min_float: 0.56): ").strip()
+# Prompt the user for additional parameters
+additional_params = input("Any additional parameters? (e.g., max_price: 100, min_price: 50, max_float: 0.5): ").strip()
 
 # Parse the additional parameters
 params = {
-    "paint_seed": None,
-    "paint_index": paint_index,
-    "def_index": def_index
+    "def_index": def_index,  # Permanent def_index
+    "paint_index": paint_index,  # Permanent paint_index
 }
 
 # Add additional parameters if provided
@@ -49,13 +48,13 @@ if additional_params:
         # Split the parameter into key and value
         param = param.strip()
         if ":" in param:
-            key, value = param.split(":", 1) 
+            key, value = param.split(":", 1)  # Split on the first colon only
             key = key.strip()
             value = value.strip()
 
             # Convert value to the appropriate type
             if key in ["max_price", "min_price"]:
-                value = int(value) * 100  
+                value = int(value) * 100  # Convert USD to cents
             elif key in ["max_float", "min_float"]:
                 # Replace commas with periods for float values
                 value = float(value.replace(",", "."))
@@ -69,51 +68,45 @@ headers = {
     "Authorization": api_key
 }
 
-# Loop through the list of paint_seed values and send a GET request for each
-for paint_seed in paint_seeds:
-    params["paint_seed"] = paint_seed  # Update paint_seed for each iteration
+# Send the GET request to fetch all listings for the given def_index and paint_index
+response = requests.get(url, headers=headers, params=params)
 
-    # Send the GET request
-    response = requests.get(url, headers=headers, params=params)
+# If the response is successful (status code 200), process the JSON data
+if response.status_code == 200:
+    try:
+        # Parse the JSON response
+        json_data = response.json()
 
-    # If the response is successful (status code 200), process the JSON data
-    if response.status_code == 200:
-        try:
-            # Parse the JSON response
-            json_data = response.json()
+        # Check if the response contains the 'data' key
+        if 'data' in json_data and isinstance(json_data['data'], list):
+            # Initialize a dictionary to store counts for each paint_seed
+            seed_counts = {seed: 0 for seed in paint_seeds}
 
-            # Initialize a set to store unique ids
-            unique_ids = set()
+            # Iterate over the listings and count matches for each paint_seed
+            for item in json_data['data']:
+                item_seed = item.get("item", {}).get("paint_seed")
+                if item_seed in seed_counts:
+                    seed_counts[item_seed] += 1
 
-            # Check if the response contains the 'data' key
-            if 'data' in json_data and isinstance(json_data['data'], list):
-                # Iterate over the 'data' array
-                for item in json_data['data']:
-                    if 'id' in item:  # Check if 'id' is in the item
-                        unique_ids.add(item['id'])
+                    # If detailed search mode, print all details of the item
+                    if search_mode == "detailed":
+                        print(json.dumps(item, indent=2))  # Pretty-print the item details
 
-                        # If detailed search mode, print all details of the item
-                        if search_mode == "detailed":
-                            print(json.dumps(item, indent=2))  # Pretty-print the item details
+            # Print the count of listings for each paint_seed
+            for seed, count in seed_counts.items():
+                print(f"Unique listings for paint_seed {seed}: {count}")
 
-                # Count of unique ids
-                count = len(unique_ids)
-
-                # Print the number of unique ids for this paint_seed
-                print(f"Unique listings for paint_seed {paint_seed}: {count}")
-            else:
-                print(f"No data found for paint_seed {paint_seed}.")
-        except ValueError as e:
-            print(f"Error parsing JSON for paint_seed {paint_seed}: {e}")
-    elif response.status_code == 429:
-        # Handle rate limiting
-        retry_after = int(response.headers.get("Retry-After", 5))  # Default to 5 seconds if Retry-After header is missing
-        print(f"Rate limit exceeded. Waiting for {retry_after} seconds before retrying...")
-        time.sleep(retry_after)
-        continue  # Retry the same request
-    else:
-        print(f"Failed to fetch data for paint_seed {paint_seed}")
-
-    # Add a delay between requests to avoid rate limiting
-    time.sleep(1)  # 1-second delay between requests
-
+            # Print the total count of unique listings
+            total_count = sum(seed_counts.values())
+            print(f"Total unique listings for all seeds: {total_count}")
+        else:
+            print(f"No data found for def_index {def_index} and paint_index {paint_index}.")
+    except ValueError as e:
+        print(f"Error parsing JSON: {e}")
+elif response.status_code == 429:
+    # Handle rate limiting
+    retry_after = int(response.headers.get("Retry-After", 5))  # Default to 5 seconds if Retry-After header is missing
+    print(f"Rate limit exceeded. Waiting for {retry_after} seconds before retrying...")
+    time.sleep(retry_after)
+else:
+    print(f"Failed to fetch data. Status code: {response.status_code}")
