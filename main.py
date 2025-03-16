@@ -15,27 +15,34 @@ url = "https://csfloat.com/api/v1/listings"
 
 # Get user input for paint_index and paint_seed
 paint_index = int(input("Enter the paint_index value: "))
-paint_seed = int(input("Enter the paint_seed value: "))
 
-# Set the parameters with userinput values
-params = {
-    "paint_seed": paint_seed, 
-    "paint_index": paint_index
-}
+# Get user input for paint_seed in a list
+user_input = input("Enter a list of paint_seed values (comma-separated): ")
+paint_seeds = [int(seed.strip()) for seed in user_input.split(",")]
 
 headers = {
     "Authorization": api_key
 }
 
-response = requests.get(url, headers=headers, params=params)
+# Loop through the list of paint_seed values and send a GET request for each
+for paint_seed in paint_seeds:
+    params = {
+        "paint_seed": paint_seed,
+        "paint_index": paint_index
+    }
 
-# Print status code
-print("Status Code:", response.status_code)
+    response = requests.get(url, headers=headers, params=params)
 
-# Print the JSON response with pretty formatting
-try:
-    # Parse the JSON response and pretty print it
-    json_data = response.json()
-    print(json.dumps(json_data, indent=4, sort_keys=True))
-except ValueError as e:
-    print("Error parsing JSON:", e)
+    print(f"Status Code for paint_seed {paint_seed}:", response.status_code)
+
+    if response.status_code == 200:
+        try:
+            json_data = response.json()
+            print(f"Response for paint_seed {paint_seed}:")
+            print(json.dumps(json_data, indent=4, sort_keys=True))
+        except ValueError as e:
+            print(f"Error parsing JSON for paint_seed {paint_seed}: {e}")
+    else:
+        print(f"Failed to fetch data for paint_seed {paint_seed}")
+    
+    print("\n" + "-"*80 + "\n")
