@@ -92,11 +92,12 @@ if response.status_code == 200:
                     if search_mode == "detailed":
                         print(json.dumps(item, indent=2))  # Pretty-print the item details
 
-            # Print the count of listings for each paint_seed
+            # Print the count of listings for each paint_seed (only if count > 0)
             for seed, count in seed_counts.items():
-                print(f"Unique listings for paint_seed {seed}: {count}")
+                if count > 0:
+                    print(f"Unique listings for paint_seed {seed}: {count}")
 
-            # Print the total count of unique listings
+            # Print the total count of unique listings (always print, even if 0)
             total_count = sum(seed_counts.values())
             print(f"Total unique listings for all seeds: {total_count}")
         else:
