@@ -13,13 +13,22 @@ if not api_key:
 
 url = "https://csfloat.com/api/v1/listings"
 
-# Get user input for paint_index and paint_seed
-paint_index = int(input("Enter the paint_index value: "))
+# Prompt user to choose between simple and detailed search
+search_mode = input("Choose search mode (simple/detailed) [default: simple]: ").strip().lower()
+if search_mode not in ["simple", "detailed"]:
+    search_mode = "simple"  # Default to simple if invalid or no input is provided
 
-# Get user input for paint_seed in a list
+# Get paint_index value from user
+paint_index = int(input("Enter the paint_index value: "))    
+
+# Get list of paint_seeds from user
 user_input = input("Enter a list of paint_seed values (comma-separated): ")
+
+# Convert the user input into a list of integers
 paint_seeds = [int(seed.strip()) for seed in user_input.split(",")]
 
+
+# Define headers with the API key for Authorization
 headers = {
     "Authorization": api_key
 }
@@ -33,16 +42,32 @@ for paint_seed in paint_seeds:
 
     response = requests.get(url, headers=headers, params=params)
 
-    print(f"Status Code for paint_seed {paint_seed}:", response.status_code)
-
     if response.status_code == 200:
         try:
             json_data = response.json()
-            print(f"Response for paint_seed {paint_seed}:")
-            print(json.dumps(json_data, indent=4, sort_keys=True))
+
+            unique_ids = set()
+
+            # Check if the response contains the 'data' key
+            if 'data' in json_data and isinstance(json_data['data'], list):
+                for item in json_data['data']:
+                    if 'id' in item:  
+                        unique_ids.add(item['id'])
+
+                        # If detailed search mode, print all details of the item
+                        if search_mode == "detailed":
+                            print(json.dumps(item, indent=2)) 
+
+                # Count of unique ids
+                count = len(unique_ids)
+
+                # Print the number of unique ids for this paint_seed
+                print(f"Unique listings for paint_seed {paint_seed}: {count}")
+            else:
+                print(f"No data found for paint_seed {paint_seed}.")
         except ValueError as e:
             print(f"Error parsing JSON for paint_seed {paint_seed}: {e}")
     else:
         print(f"Failed to fetch data for paint_seed {paint_seed}")
-    
+
     print("\n" + "-"*80 + "\n")
