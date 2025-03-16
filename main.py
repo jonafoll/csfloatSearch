@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import requests
 import json
+import time
 
 load_dotenv()
 # Access the API key from the environment variable
@@ -19,8 +20,15 @@ if search_mode not in ["simple", "detailed"]:
 # Get paint_index value from user
 paint_index = int(input("Enter the paint_index value: "))    
 
+# Get def_index value from user
+def_index = int(input("Enter the def_index value: "))    
+
 # Get list of paint_seeds from user
-user_input = input("Enter a list of paint_seed values (comma-separated): ")
+user_input = input("Enter a list of paint_seed values (comma- or space-separated): ")
+
+# Replace spaces with commas and split into a list
+if " " in user_input:
+    user_input = user_input.replace(" ", ",")  # Replace spaces with commas
 
 # Convert the user input into a list of integers
 paint_seeds = [int(seed.strip()) for seed in user_input.split(",")]
@@ -31,7 +39,8 @@ additional_params = input("Any additional parameters? (e.g., max_price: 100, min
 # Parse the additional parameters
 params = {
     "paint_seed": None,
-    "paint_index": paint_index
+    "paint_index": paint_index,
+    "def_index": def_index
 }
 
 # Add additional parameters if provided
@@ -62,8 +71,9 @@ headers = {
 
 # Loop through the list of paint_seed values and send a GET request for each
 for paint_seed in paint_seeds:
-    params["paint_seed"] = paint_seed 
+    params["paint_seed"] = paint_seed  # Update paint_seed for each iteration
 
+    # Send the GET request
     response = requests.get(url, headers=headers, params=params)
 
     # If the response is successful (status code 200), process the JSON data
@@ -95,8 +105,15 @@ for paint_seed in paint_seeds:
                 print(f"No data found for paint_seed {paint_seed}.")
         except ValueError as e:
             print(f"Error parsing JSON for paint_seed {paint_seed}: {e}")
+    elif response.status_code == 429:
+        # Handle rate limiting
+        retry_after = int(response.headers.get("Retry-After", 5))  # Default to 5 seconds if Retry-After header is missing
+        print(f"Rate limit exceeded. Waiting for {retry_after} seconds before retrying...")
+        time.sleep(retry_after)
+        continue  # Retry the same request
     else:
         print(f"Failed to fetch data for paint_seed {paint_seed}")
 
-    # Add a separator for readability between responses
-    print("\n" + "-"*80 + "\n")
+    # Add a delay between requests to avoid rate limiting
+    time.sleep(1)  # 1-second delay between requests
+
